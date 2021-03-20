@@ -56,13 +56,13 @@ echo "Finished updating the repository"
 echo ""
 echo "Updating the environment variables..."
 sed -i "1s/$/doccolink@gmail.com/" ${REPOSITORY_PATH}/web_variables.env  # append email address to the first line of web_variables.env
-read -sp "- Enter the password for doccolink@gmail.com: " email_password
-echo ""
+read -p "- Enter the password for doccolink@gmail.com: " email_password
+# echo ""
 sed -i "2s/$/$email_password/" ${REPOSITORY_PATH}/web_variables.env    # append email password
 read -p "- Enter the superuser username: " superuser_username
 sed -i "3s/$/$superuser_username/" ${REPOSITORY_PATH}/web_variables.env # append superuser username
-read -sp "- Enter the superuser password: " superuser_password
-echo ""
+read -p "- Enter the superuser password: " superuser_password
+# echo ""
 sed -i "5s/$/$superuser_password/" ${REPOSITORY_PATH}/web_variables.env # append superuser password
 read -p "- Enter the superuser email: " superuser_email
 sed -i "4s/$/$superuser_email/" ${REPOSITORY_PATH}/web_variables.env # append superuser email
