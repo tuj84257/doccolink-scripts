@@ -3,6 +3,8 @@
 REPOSITORY_PATH=DoccoLink-Development-Repo
 DOCKER_COMPOSE_PATH=DoccoLink-Development-Repo/docker-compose.yml
 DATABASE_BACKUP_DIRECTORY_PATH=database_backups
+MEDIA_BACKUP_DIRECTORY_PATH=media_backups
+datetime_now=$(date +%Y-%m-%d_%H_%M_%S)
 
 echo ""
 echo "---STARTING DOCCOLINK UPDATE---"
@@ -21,8 +23,27 @@ else
         echo "Created the database_backups directory."
 fi
 
-sudo docker exec -t db pg_dumpall -c -U postgres > database_backups/update_dump_$(date +%Y-%m-%d_%H_%M_%S).sql  # https://stackoverflow.com/questions/24718706/backup-restore-a-dockerized-postgresql-database/63435830#63435830
+sudo docker exec -t db pg_dumpall -c -U postgres > database_backups/update_dump_${datetime_now}.sql  # https://stackoverflow.com/questions/24718706/backup-restore-a-dockerized-postgresql-database/63435830#63435830
 echo "Finished database backup."
+
+# -- BACKUP THE MEDIA FILES -- #
+
+echo ""
+NGINX_CONTAINER_ID=$(sudo docker ps | grep nginx | awk '{print $1}')
+echo "Backing up media directory from NGINX container: ${NGINX_CONTAINER_ID}"
+
+if [ -d "${MEDIA_BACKUP_DIRECTORY_PATH}" ]
+then
+        echo "Directory media_backups exists."
+else
+        echo "Directory media_backups does not exist!"
+        mkdir ${MEDIA_BACKUP_DIRECTORY_PATH}
+        echo "Created the media_backups directory."
+fi
+
+mkdir ${MEDIA_BACKUP_DIRECTORY_PATH}/media_dump_${datetime_now}
+sudo docker cp ${NGINX_CONTAINER_ID}:/media ${MEDIA_BACKUP_DIRECTORY_PATH}/media_dump_${datetime_now}
+echo "Finished backing up media directory."
 
 # -- TAKE DOWN THE APPLICATION CONTAINERS -- #
 
@@ -82,12 +103,17 @@ echo "The application containers are up."
 
 echo ""
 echo "Restoring the database..."
-most_recent_database_backup=$(ls -td ${DATABASE_BACKUP_DIRECTORY_PATH}/update_dump*| head -1)
-string=${most_recent_database_backup//\// }                 # replace / with space   https://stackoverflow.com/a/5257398/13659134
-database_backup_file=${string##* }	# get last substring
-echo "Found database backup file to restore: ${database_backup_file}"
-cat ${DATABASE_BACKUP_DIRECTORY_PATH}/${database_backup_file} | sudo docker exec -i db psql -U postgres -d postgres
-
+cat ${DATABASE_BACKUP_DIRECTORY_PATH}/update_dump_${datetime_now}.sql | sudo docker exec -i db psql -U postgres -d postgres
 echo "Finished restoring the database."
+
+# -- RESTORE MEDIA FILES -- #
+
+echo ""
+echo "Restoring media files..."
+NGINX_NEW_CONTAINER_ID=$(sudo docker ps | grep nginx | awk '{print $1}')
+echo "Found new NGINX container: ${NGINX_NEW_CONTAINER_ID}"
+sudo docker cp ${MEDIA_BACKUP_DIRECTORY_PATH}/media_dump_${datetime_now}/. ${NGINX_NEW_CONTAINER_ID}:/
+echo "Finished restoring media files."
+
 echo ""
 echo "---FINISHED DOCCOLINK UPDATE---"
